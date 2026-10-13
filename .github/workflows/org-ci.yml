@@ -4,7 +4,7 @@ name: Seguridad y CI de la org
 
 on:
   push:
-    branches: [drake]
+    branches: [drake, port-26x, 26.x]
     paths: ['src/**', 'pom.xml', 'build.gradle*', 'gradle/**', '.github/workflows/ci.yml']
   pull_request:
   workflow_dispatch:
