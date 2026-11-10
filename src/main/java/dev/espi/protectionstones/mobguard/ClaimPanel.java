@@ -4,6 +4,9 @@ import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldguard.protection.flags.Flag;
 import com.sk89q.worldguard.protection.flags.Flags;
 import com.sk89q.worldguard.protection.flags.StateFlag;
+import com.sk89q.worldguard.protection.flags.StringFlag;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import net.kyori.adventure.title.Title;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import dev.espi.protectionstones.PSRegion;
@@ -65,9 +68,11 @@ public class ClaimPanel implements Listener {
             {"use", Material.STONE_BUTTON, true, "Puertas/botones (visitantes)", "Doors/buttons (visitors)"},
     };
 
-    private enum Page { MAIN, MEMBERS, FLAGS, MOBS, CONFIRM }
-    private enum Ask { RENAME, ADD }
-    private record Pending(Ask ask, Location loc, long at) {}
+    private enum Page { MAIN, MEMBERS, FLAGS, MOBS, CONFIRM, MSGS }
+    private static final String[] MSG_FLAGS = {"greeting", "farewell", "greeting-title", "farewell-title"};
+    private static final int[] MSG_SLOTS = {11, 13, 29, 31};
+    private enum Ask { RENAME, ADD, EDIT }
+    private record Pending(Ask ask, Location loc, long at, String flag) {}
 
     private static class Menu implements InventoryHolder {
         final Location loc; final String key; Page page = Page.MAIN; String category = "FARM"; Inventory inv;
@@ -186,6 +191,7 @@ public class ClaimPanel implements Listener {
             case FLAGS -> t(p, "Opciones del claim", "Claim flags");
             case MOBS -> t(p, "Mobs del claim", "Claim mobs");
             case CONFIRM -> t(p, "Quitar proteccion?", "Remove protection?");
+            case MSGS -> t(p, "Bienvenida y despedida", "Greeting and farewell");
         };
         Inventory inv = Bukkit.createInventory(m, 54, Component.text(title));
         m.inv = inv;
@@ -197,6 +203,7 @@ public class ClaimPanel implements Listener {
             case FLAGS -> drawFlags(p, r, inv);
             case MOBS -> drawMobs(p, inv, m);
             case CONFIRM -> drawConfirm(p, r, inv);
+            case MSGS -> drawMsgs(p, r, inv);
         }
         if (m.page != Page.MAIN) inv.setItem(45, item(Material.ARROW, c(t(p, "Volver", "Back"), NamedTextColor.WHITE), null, false));
         inv.setItem(53, item(Material.OAK_DOOR, c(t(p, "Cerrar", "Close"), NamedTextColor.WHITE), null, false));
@@ -228,6 +235,8 @@ public class ClaimPanel implements Listener {
                 List.of(c(t(p, "PvP, explosiones, fuego, visitantes...", "PvP, explosions, fire, visitors..."), NamedTextColor.GRAY)), false));
         inv.setItem(23, item(Material.SADDLE, c(t(p, "Mobs del claim", "Claim mobs"), NamedTextColor.GOLD),
                 List.of(c(t(p, "Proteger mobs y limpieza por tiempo", "Protect mobs and timed cleanup"), NamedTextColor.GRAY)), false));
+        inv.setItem(28, item(Material.OAK_SIGN, c(t(p, "Mensajes de bienvenida / despedida", "Greeting / farewell messages"), NamedTextColor.LIGHT_PURPLE),
+                List.of(c(t(p, "Ver, editar, borrar y probar", "View, edit, clear and preview"), NamedTextColor.GRAY)), false));
         inv.setItem(25, item(Material.NAME_TAG, c(t(p, "Renombrar claim", "Rename claim"), NamedTextColor.WHITE), null, false));
         inv.setItem(32, item(Material.TNT_MINECART, c(t(p, "Quitar proteccion (unclaim)", "Remove protection (unclaim)"), NamedTextColor.RED),
                 List.of(c(t(p, "Pide confirmacion", "Asks for confirmation"), NamedTextColor.GRAY)), false));
@@ -281,6 +290,37 @@ public class ClaimPanel implements Listener {
             if ((boolean) fi[2]) lore.add(c(t(p, "Afecta solo a visitantes (no miembros)", "Only affects visitors (non-members)"), NamedTextColor.DARK_GRAY));
             inv.setItem(slot++, item((Material) fi[1], c(t(p, (String) fi[3], (String) fi[4]), col), lore, v == StateFlag.State.DENY));
             if (slot > 44) break;
+        }
+    }
+
+    private static String flagText(PSRegion r, String name) {
+        Flag<?> f = Flags.fuzzyMatchFlag(WGUtils.getFlagRegistry(), name);
+        if (!(f instanceof StringFlag sf)) return null;
+        return r.getWGRegion().getFlag(sf);
+    }
+
+    private static boolean msgAllowed(PSRegion r, String name) {
+        return r.getTypeOptions().allowedFlags.containsKey(name) && Flags.fuzzyMatchFlag(WGUtils.getFlagRegistry(), name) instanceof StringFlag;
+    }
+
+    private void drawMsgs(Player p, PSRegion r, Inventory inv) {
+        String[][] names = {{"Bienvenida (chat)", "Greeting (chat)"}, {"Despedida (chat)", "Farewell (chat)"},
+                {"Bienvenida (titulo)", "Greeting (title)"}, {"Despedida (titulo)", "Farewell (title)"}};
+        Material[] icons = {Material.OAK_SIGN, Material.SPRUCE_SIGN, Material.GOLDEN_CARROT, Material.GLOW_INK_SAC};
+        for (int i = 0; i < 4; i++) {
+            if (!msgAllowed(r, MSG_FLAGS[i])) continue;
+            String cur = flagText(r, MSG_FLAGS[i]);
+            boolean perm = p.hasPermission("protectionstones.flags.edit." + MSG_FLAGS[i]);
+            List<Component> lore = new ArrayList<>();
+            lore.add(cur == null ? c(t(p, "(sin mensaje)", "(no message)"), NamedTextColor.DARK_GRAY)
+                    : LegacyComponentSerializer.legacyAmpersand().deserialize(cur.replace('\u00a7', '&')).decoration(TextDecoration.ITALIC, false));
+            if (perm) {
+                lore.add(c(t(p, "Clic izq: editar (escribes en el chat)", "Left click: edit (type in chat)"), NamedTextColor.GRAY));
+                lore.add(c(t(p, "Clic der: borrar", "Right click: clear"), NamedTextColor.GRAY));
+            } else lore.add(c(t(p, "Sin permiso para cambiarlo", "No permission to change it"), NamedTextColor.RED));
+            lore.add(c(t(p, "Shift + clic: vista previa", "Shift + click: preview"), NamedTextColor.GRAY));
+            lore.add(c(t(p, "Max " + MessageSanitizer.MAX_LEN + " caracteres, codigos &, sin enlaces", "Max " + MessageSanitizer.MAX_LEN + " chars, & codes, no links"), NamedTextColor.DARK_GRAY));
+            inv.setItem(MSG_SLOTS[i], item(icons[i], c(t(p, names[i][0], names[i][1]), NamedTextColor.LIGHT_PURPLE), lore, cur != null));
         }
     }
 
@@ -387,13 +427,14 @@ public class ClaimPanel implements Listener {
                     case 21 -> m.page = Page.FLAGS;
                     case 23 -> m.page = Page.MOBS;
                     case 32 -> m.page = Page.CONFIRM;
-                    case 25 -> { ask(p, Ask.RENAME, m.loc, t(p, "Escribe el nuevo nombre del claim en el chat (o 'cancelar').", "Type the new claim name in chat (or 'cancel').")); return; }
+                    case 28 -> m.page = Page.MSGS;
+                    case 25 -> { ask(p, Ask.RENAME, m.loc, null, t(p, "Escribe el nuevo nombre del claim en el chat (o 'cancelar').", "Type the new claim name in chat (or 'cancel').")); return; }
                     default -> { return; }
                 }
             }
             case MEMBERS -> {
                 if (!full) return;
-                if (slot == 47) { ask(p, Ask.ADD, m.loc, t(p, "Escribe el nombre del jugador a anadir (o 'cancelar').", "Type the player name to add (or 'cancel').")); return; }
+                if (slot == 47) { ask(p, Ask.ADD, m.loc, null, t(p, "Escribe el nombre del jugador a anadir (o 'cancelar').", "Type the player name to add (or 'cancel').")); return; }
                 if (clicked.getType() != Material.PLAYER_HEAD || !(clicked.getItemMeta() instanceof SkullMeta sm) || sm.getOwningPlayer() == null) return;
                 UUID u = sm.getOwningPlayer().getUniqueId();
                 String n = name(u);
@@ -436,6 +477,24 @@ public class ClaimPanel implements Listener {
                 } else if (slot == 46) { s.overrides.clear(); s.minutes = 0; dirty = true; }
                 else return;
             }
+            case MSGS -> {
+                if (!full) return;
+                int idx = -1;
+                for (int i = 0; i < 4; i++) if (MSG_SLOTS[i] == slot) idx = i;
+                if (idx < 0 || !msgAllowed(r, MSG_FLAGS[idx])) return;
+                String fl = MSG_FLAGS[idx];
+                if (e.isShiftClick()) {
+                    String cur = flagText(r, fl);
+                    if (cur == null) { p.sendMessage(c(t(p, "No hay mensaje configurado.", "No message set."), NamedTextColor.GRAY)); return; }
+                    Component msg = LegacyComponentSerializer.legacyAmpersand().deserialize(cur.replace("%player%", p.getName()));
+                    if (fl.endsWith("title")) p.showTitle(Title.title(msg, Component.empty())); else p.sendMessage(msg);
+                    return;
+                }
+                if (!p.hasPermission("protectionstones.flags.edit." + fl)) return;
+                if (e.isRightClick()) p.performCommand(cmd() + " flag " + fl + " none");
+                else { ask(p, Ask.EDIT, m.loc, fl, t(p, "Escribe el mensaje en el chat (o 'cancelar'). Colores con &, max " + MessageSanitizer.MAX_LEN + " caracteres, %player% = nombre del dueno.",
+                        "Type the message in chat (or 'cancel'). Use & colors, max " + MessageSanitizer.MAX_LEN + " chars, %player% = owner name.")); return; }
+            }
             case CONFIRM -> {
                 if (!full) return;
                 if (slot == 20) m.page = Page.MAIN;
@@ -461,21 +520,38 @@ public class ClaimPanel implements Listener {
 
     // ---------------------------------------------------------------- chat prompts (rename / add by name)
 
-    private void ask(Player p, Ask a, Location loc, String msg) {
+    private void ask(Player p, Ask a, Location loc, String flag, String msg) {
         p.closeInventory();
-        pending.put(p.getUniqueId(), new Pending(a, loc, System.currentTimeMillis()));
+        pending.put(p.getUniqueId(), new Pending(a, loc, System.currentTimeMillis(), flag));
         p.sendMessage(c(msg, NamedTextColor.YELLOW));
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    // HIGHEST + not ignoring cancelled: if the server chat filter (Odysseia ChatFilterListener, LOWEST) cancelled it, the text is rejected.
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onChat(AsyncChatEvent e) {
         Pending pd = pending.remove(e.getPlayer().getUniqueId());
         if (pd == null) return;
+        boolean filtered = e.isCancelled();
         e.setCancelled(true);
         Player p = e.getPlayer();
         String text = PlainTextComponentSerializer.plainText().serialize(e.message()).trim();
         if (System.currentTimeMillis() - pd.at() > 60_000 || text.equalsIgnoreCase("cancel") || text.equalsIgnoreCase("cancelar")) {
             p.sendMessage(c(t(p, "Cancelado.", "Cancelled."), NamedTextColor.GRAY));
+            return;
+        }
+        if (filtered) { p.sendMessage(c(t(p, "Texto rechazado por el filtro del chat.", "Text rejected by the chat filter."), NamedTextColor.RED)); return; }
+        if (pd.ask() == Ask.EDIT) {
+            MessageSanitizer.Result res = MessageSanitizer.clean(text);
+            if (!res.ok()) { p.sendMessage(c(t(p, res.errorEs(), res.errorEn()), NamedTextColor.RED)); return; }
+            final String clean = res.text();
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                PSRegion r = PSRegion.fromLocationGroup(pd.loc());
+                if (r == null || !full(p, r) || !msgAllowed(r, pd.flag()) || !p.hasPermission("protectionstones.flags.edit." + pd.flag())) return;
+                p.performCommand(cmd() + " flag " + pd.flag() + " " + clean);
+                Menu m = new Menu(pd.loc(), key(r));
+                m.page = Page.MSGS;
+                open(p, m);
+            });
             return;
         }
         boolean ok = pd.ask() == Ask.RENAME ? text.length() <= 32 && !text.isEmpty() : text.matches("[A-Za-z0-9_.]{1,16}");
