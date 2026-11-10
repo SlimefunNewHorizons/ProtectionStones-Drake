@@ -205,6 +205,13 @@ public class ProtectionStones extends JavaPlugin {
     /**
      * @return the plugin instance that is currently being used
      */
+    private dev.espi.protectionstones.mobguard.ClaimPanel claimPanel;
+
+    @Override
+    public void onDisable() {
+        if (claimPanel != null) claimPanel.stop();
+    }
+
     public static ProtectionStones getInstance() {
         return plugin;
     }
@@ -567,6 +574,8 @@ public class ProtectionStones extends JavaPlugin {
 
         // register event listeners
         getServer().getPluginManager().registerEvents(new ListenerClass(), this);
+        claimPanel = new dev.espi.protectionstones.mobguard.ClaimPanel(this);
+        claimPanel.start();
 
         // check that WorldGuard and WorldEdit are enabled (WorldGuard will only be enabled if there's WorldEdit)
         if (getServer().getPluginManager().getPlugin("WorldGuard") == null || !getServer().getPluginManager().getPlugin("WorldGuard").isEnabled()) {
