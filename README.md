@@ -42,3 +42,8 @@ Compiling ProtectionStones will also produce a jar with JavaDocs, which can be u
 View full usage statistics [here](https://bstats.org/plugin/bukkit/ProtectionStones/4071).
 
 This plugin is licensed under the **GPLv3**, as is required by Bukkit plugins.
+
+### Development candidate (2026-11-19)
+
+The `/ps view` purple particle fix is source-only: builds and runtime validation
+are pending. See [status and reproduction](docs/VIEW_PARTICLES.md).
