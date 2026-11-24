@@ -161,6 +161,12 @@ public class PSConfig {
             // iterate over block files and load into map
             ProtectionStones.getPluginLogger().info("Protection Stone Blocks:");
             for (File file : ProtectionStones.blockDataFolder.listFiles()) {
+                // Un respaldo suelto (p. ej. foo.toml.bak) no tiene formato: night-config lanza
+                // NoFormatFoundException y tumba el plugin entero en onEnable.
+                if (!file.isFile() || !file.getName().endsWith(".toml")) {
+                    ProtectionStones.getPluginLogger().warning("Ignorando archivo no .toml en blocks/: " + file.getName());
+                    continue;
+                }
 
                 CommentedFileConfig c = CommentedFileConfig.builder(file).sync().build();
                 c.load();
