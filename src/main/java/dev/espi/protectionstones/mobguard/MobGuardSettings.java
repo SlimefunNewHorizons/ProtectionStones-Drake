@@ -39,7 +39,7 @@ public class MobGuardSettings {
         if (s == defaultState(type)) overrides.remove(type); else overrides.put(type, s);
     }
 
-    /** Left click: protected <-> neutral. Right click: clean <-> neutral. */
+    /** Left click: protected &lt;-&gt; neutral. Right click: clean &lt;-&gt; neutral. */
     public State toggle(String type, boolean clean) {
         State cur = state(type);
         State next = clean ? (cur == State.CLEAN ? State.NEUTRAL : State.CLEAN) : (cur == State.PROTECTED ? State.NEUTRAL : State.PROTECTED);
