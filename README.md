@@ -4,6 +4,8 @@
 > **Créditos y licencia.** Port y mantenimiento por [JackStar6677-1](https://github.com/JackStar6677-1) y [DrakesCraft Labs](https://github.com/SlimefunNewHorizons). Autores originales: [espidev](https://github.com/espidev), [Dragoboss](https://github.com/Dragoboss), [vik1395](https://github.com/vik1395), [jerzean](https://github.com/jerzean), [Krakenied](https://github.com/Krakenied), [dylanpdx](https://github.com/dylanpdx), [chick4nnn](https://github.com/chick4nnn), [flutz1](https://github.com/flutz1), [antonkesy](https://github.com/antonkesy), [itaquito](https://github.com/itaquito), [mikroskeem](https://github.com/mikroskeem), [rinpr](https://github.com/rinpr), EspiDev (plugin.yml). Licencia original: **GNU General Public License v3.0**. Detalle en [docs/UPSTREAM_ATTRIBUTION.md](docs/UPSTREAM_ATTRIBUTION.md).
 <!-- credits:end -->
 
+> **Branches / Ramas.** `main`: Paper/Purpur 1.21.11 (Java 21). `port-26x`: Paper/Purpur 26.x (production: Purpur 26.2, Java 25). If another section of this README says otherwise, this note prevails. / Si otra seccion de este README dice otra cosa, prevalece esta nota.
+
 ![ProtectionStones](/logo.png?raw=true)
 
 [![Maven Central](https://img.shields.io/maven-central/v/dev.espi/protectionstones.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22dev.espi%22%20AND%20a:%22protectionstones%22)
